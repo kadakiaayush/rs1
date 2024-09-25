@@ -3,7 +3,6 @@ import yfinance as yf
 import pandas as pd
 import plotly.graph_objects as go
 
-# Custom CSS for improved styling
 st.markdown(
     """
     <style>
@@ -54,7 +53,6 @@ st.markdown(
 st.markdown("<h1 class='title'>📊 RSI & Momentum Analysis for Stocks, Treasuries, and ETFs</h1>", unsafe_allow_html=True)
 st.sidebar.header("🔧 Customization Options")
 
-# Sidebar options with improved UI
 rsi_period = st.sidebar.slider("Select RSI Period", min_value=7, max_value=30, value=14)
 
 instruments = {
