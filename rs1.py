@@ -76,7 +76,7 @@ stock_symbol = custom_symbol if custom_symbol else instruments[selected_instrume
 
 # Function Definitions
 def calculate_rsi(data, period):
-    delta = data['Adj Close'].diff(1)
+    delta = data['Close'].diff(1)
     gain = delta.where(delta > 0, 0)
     loss = -delta.where(delta < 0, 0)
     avg_gain = gain.rolling(window=period, min_periods=1).mean()
@@ -94,14 +94,14 @@ def calculate_rsi(data, period):
     return rsi
 
 def calculate_macd(data, short_period=12, long_period=26, signal_period=9):
-    short_ema = data['Adj Close'].ewm(span=short_period, adjust=False).mean()
-    long_ema = data['Adj Close'].ewm(span=long_period, adjust=False).mean()
+    short_ema = data['Close'].ewm(span=short_period, adjust=False).mean()
+    long_ema = data['Close'].ewm(span=long_period, adjust=False).mean()
     macd = short_ema - long_ema
     signal = macd.ewm(span=signal_period, adjust=False).mean()
     return macd, signal
 
 def calculate_sma(data, period=20):
-    return data['Adj Close'].rolling(window=period).mean()
+    return data['Close'].rolling(window=period).mean()
 
 # Main Logic
 if stock_symbol:
@@ -110,10 +110,10 @@ if stock_symbol:
     if stock_data.empty:
         st.error(f"⚠️ No data fetched for symbol: {stock_symbol}. Please check the symbol or try another one.")
     else:
-        # Use 'Close' as a fallback for 'Adj Close'
-        if 'Adj Close' not in stock_data.columns:
-            st.warning(f"'Adj Close' column is missing in the data for symbol: {stock_symbol}. Using 'Close' instead.")
-            stock_data['Adj Close'] = stock_data['Close']
+        # Use 'Close' as a fallback for 'Close'
+        if 'Close' not in stock_data.columns:
+            st.warning(f"'Close' column is missing in the data for symbol: {stock_symbol}. Using 'Close' instead.")
+            stock_data['Close'] = stock_data['Close']
 
         # Perform Calculations
         stock_data['RSI'] = calculate_rsi(stock_data, rsi_period)
@@ -153,7 +153,7 @@ if stock_symbol:
 
         # Price & SMA Plot
         fig_price = go.Figure()
-        fig_price.add_trace(go.Scatter(x=stock_data.index, y=stock_data['Adj Close'], mode='lines', name='Price', line=dict(color='black')))
+        fig_price.add_trace(go.Scatter(x=stock_data.index, y=stock_data['Close'], mode='lines', name='Price', line=dict(color='black')))
         fig_price.add_trace(go.Scatter(x=stock_data.index, y=stock_data['SMA_20'], mode='lines', name='20-day SMA', line=dict(color='red')))
         fig_price.update_layout(title=f"{stock_symbol} Price and 20-day SMA", yaxis_title="Price")
         st.plotly_chart(fig_price)
