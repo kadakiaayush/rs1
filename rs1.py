@@ -1,5 +1,3 @@
-# rs1.py
-
 import streamlit as st
 import yfinance as yf
 import pandas as pd
@@ -112,59 +110,59 @@ if stock_symbol:
     if stock_data.empty:
         st.error(f"⚠️ No data fetched for symbol: {stock_symbol}. Please check the symbol or try another one.")
     else:
+        # Use 'Close' as a fallback for 'Adj Close'
         if 'Adj Close' not in stock_data.columns:
-            st.error(f"⚠️ 'Adj Close' column is missing in the data for symbol: {stock_symbol}.")
-            st.write("Here's the fetched data structure for debugging:")
-            st.write(stock_data.head())
-        else:
-            # Perform Calculations
-            stock_data['RSI'] = calculate_rsi(stock_data, rsi_period)
-            stock_data['SMA_20'] = calculate_sma(stock_data)
-            stock_data['MACD'], stock_data['Signal'] = calculate_macd(stock_data)
+            st.warning(f"'Adj Close' column is missing in the data for symbol: {stock_symbol}. Using 'Close' instead.")
+            stock_data['Adj Close'] = stock_data['Close']
 
-            current_rsi = stock_data['RSI'].iloc[-1]
-            rsi_status = "Overbought" if current_rsi > 70 else "Oversold" if current_rsi < 30 else "Neutral"
+        # Perform Calculations
+        stock_data['RSI'] = calculate_rsi(stock_data, rsi_period)
+        stock_data['SMA_20'] = calculate_sma(stock_data)
+        stock_data['MACD'], stock_data['Signal'] = calculate_macd(stock_data)
 
-            rsi_status_color = "#e74c3c" if rsi_status == "Overbought" else "#2ecc71" if rsi_status == "Oversold" else "#f39c12"
-            st.markdown(
-                f"""
-                <div class='info-box' style='background-color: {rsi_status_color};'>
-                    <h2>RSI for {stock_symbol}: {current_rsi:.2f}</h2>
-                    <p>Status: {rsi_status}</p>
-                </div>
-                """,
-                unsafe_allow_html=True,
-            )
+        current_rsi = stock_data['RSI'].iloc[-1]
+        rsi_status = "Overbought" if current_rsi > 70 else "Oversold" if current_rsi < 30 else "Neutral"
 
-            st.subheader(f"🔍 Insights for {stock_symbol}")
+        rsi_status_color = "#e74c3c" if rsi_status == "Overbought" else "#2ecc71" if rsi_status == "Oversold" else "#f39c12"
+        st.markdown(
+            f"""
+            <div class='info-box' style='background-color: {rsi_status_color};'>
+                <h2>RSI for {stock_symbol}: {current_rsi:.2f}</h2>
+                <p>Status: {rsi_status}</p>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
 
-            # RSI Plot
-            fig_rsi = go.Figure()
-            fig_rsi.add_trace(go.Scatter(x=stock_data.index, y=stock_data['RSI'], mode='lines', name='RSI'))
-            fig_rsi.add_hline(y=70, line_dash="dash", line_color="red", annotation_text="Overbought", annotation_position="bottom right")
-            fig_rsi.add_hline(y=30, line_dash="dash", line_color="green", annotation_text="Oversold", annotation_position="top right")
-            fig_rsi.update_layout(title=f"{stock_symbol} RSI (Default Period: {rsi_period})", yaxis_title="RSI Value")
-            st.plotly_chart(fig_rsi)
+        st.subheader(f"🔍 Insights for {stock_symbol}")
 
-            # MACD Plot
-            fig_macd = go.Figure()
-            fig_macd.add_trace(go.Scatter(x=stock_data.index, y=stock_data['MACD'], mode='lines', name='MACD', line=dict(color='purple')))
-            fig_macd.add_trace(go.Scatter(x=stock_data.index, y=stock_data['Signal'], mode='lines', name='Signal Line', line=dict(color='orange')))
-            fig_macd.update_layout(title=f"{stock_symbol} MACD", yaxis_title="MACD Value")
-            st.plotly_chart(fig_macd)
+        # RSI Plot
+        fig_rsi = go.Figure()
+        fig_rsi.add_trace(go.Scatter(x=stock_data.index, y=stock_data['RSI'], mode='lines', name='RSI'))
+        fig_rsi.add_hline(y=70, line_dash="dash", line_color="red", annotation_text="Overbought", annotation_position="bottom right")
+        fig_rsi.add_hline(y=30, line_dash="dash", line_color="green", annotation_text="Oversold", annotation_position="top right")
+        fig_rsi.update_layout(title=f"{stock_symbol} RSI (Default Period: {rsi_period})", yaxis_title="RSI Value")
+        st.plotly_chart(fig_rsi)
 
-            # Price & SMA Plot
-            fig_price = go.Figure()
-            fig_price.add_trace(go.Scatter(x=stock_data.index, y=stock_data['Adj Close'], mode='lines', name='Price', line=dict(color='black')))
-            fig_price.add_trace(go.Scatter(x=stock_data.index, y=stock_data['SMA_20'], mode='lines', name='20-day SMA', line=dict(color='red')))
-            fig_price.update_layout(title=f"{stock_symbol} Price and 20-day SMA", yaxis_title="Price")
-            st.plotly_chart(fig_price)
+        # MACD Plot
+        fig_macd = go.Figure()
+        fig_macd.add_trace(go.Scatter(x=stock_data.index, y=stock_data['MACD'], mode='lines', name='MACD', line=dict(color='purple')))
+        fig_macd.add_trace(go.Scatter(x=stock_data.index, y=stock_data['Signal'], mode='lines', name='Signal Line', line=dict(color='orange')))
+        fig_macd.update_layout(title=f"{stock_symbol} MACD", yaxis_title="MACD Value")
+        st.plotly_chart(fig_macd)
 
-            # Alerts
-            if rsi_status == "Overbought":
-                st.warning(f"⚠️ {stock_symbol} is currently overbought. Potential for price correction.")
-            elif rsi_status == "Oversold":
-                st.success(f"💡 {stock_symbol} is currently oversold. Consider potential buying opportunities.")
+        # Price & SMA Plot
+        fig_price = go.Figure()
+        fig_price.add_trace(go.Scatter(x=stock_data.index, y=stock_data['Adj Close'], mode='lines', name='Price', line=dict(color='black')))
+        fig_price.add_trace(go.Scatter(x=stock_data.index, y=stock_data['SMA_20'], mode='lines', name='20-day SMA', line=dict(color='red')))
+        fig_price.update_layout(title=f"{stock_symbol} Price and 20-day SMA", yaxis_title="Price")
+        st.plotly_chart(fig_price)
+
+        # Alerts
+        if rsi_status == "Overbought":
+            st.warning(f"⚠️ {stock_symbol} is currently overbought. Potential for price correction.")
+        elif rsi_status == "Oversold":
+            st.success(f"💡 {stock_symbol} is currently oversold. Consider potential buying opportunities.")
 
 # Footer
 st.markdown(
