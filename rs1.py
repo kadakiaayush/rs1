@@ -70,14 +70,6 @@ def calculate_rsi(data, period):
     loss = -delta.where(delta < 0, 0)
     avg_gain = gain.rolling(window=period, min_periods=1).mean()
     avg_loss = loss.rolling(window=period, min_periods=1).mean()
-
-    avg_gain.iloc[period] = gain.iloc[:period+1].mean()
-    avg_loss.iloc[period] = loss.iloc[:period+1].mean()
-
-    for i in range(period + 1, len(avg_gain)):
-        avg_gain.iloc[i] = (avg_gain.iloc[i - 1] * (period - 1) + gain.iloc[i]) / period
-        avg_loss.iloc[i] = (avg_loss.iloc[i - 1] * (period - 1) + loss.iloc[i]) / period
-
     rs = avg_gain / avg_loss
     rsi = 100 - (100 / (1 + rs))
     return rsi
@@ -99,6 +91,10 @@ if stock_symbol:
     if stock_data.empty:
         st.error(f"⚠️ No data fetched for symbol: {stock_symbol}. Please check the symbol or try another one.")
     else:
+        # Ensure no missing data in Close column
+        stock_data['Close'].fillna(method='ffill', inplace=True)
+        stock_data['Close'].fillna(method='bfill', inplace=True)
+
         # Perform Calculations
         stock_data['RSI'] = calculate_rsi(stock_data, rsi_period)
         stock_data['SMA_20'] = calculate_sma(stock_data)
@@ -136,9 +132,10 @@ if stock_symbol:
         st.plotly_chart(fig_macd)
 
         # Price & SMA Plot
+        valid_data = stock_data.dropna(subset=['SMA_20'])
         fig_price = go.Figure()
-        fig_price.add_trace(go.Scatter(x=stock_data.index, y=stock_data['Close'], mode='lines', name='Close Price', line=dict(color='blue')))
-        fig_price.add_trace(go.Scatter(x=stock_data.index, y=stock_data['SMA_20'], mode='lines', name='20-Day SMA', line=dict(color='orange')))
+        fig_price.add_trace(go.Scatter(x=valid_data.index, y=valid_data['Close'], mode='lines', name='Close Price', line=dict(color='blue')))
+        fig_price.add_trace(go.Scatter(x=valid_data.index, y=valid_data['SMA_20'], mode='lines', name='20-Day SMA', line=dict(color='orange')))
         fig_price.update_layout(
             title=f"{stock_symbol} Price and 20-Day SMA",
             xaxis_title="Date",
