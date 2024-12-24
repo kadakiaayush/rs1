@@ -100,56 +100,60 @@ if stock_symbol:
         stock_data['SMA_20'] = calculate_sma(stock_data)
         stock_data['MACD'], stock_data['Signal'] = calculate_macd(stock_data)
 
-        current_rsi = stock_data['RSI'].iloc[-1]
-        rsi_status = "Overbought" if current_rsi > 70 else "Oversold" if current_rsi < 30 else "Neutral"
+        # Check if SMA_20 exists and has enough data
+        if 'SMA_20' not in stock_data.columns or stock_data['SMA_20'].isna().all():
+            st.warning("Not enough data to calculate the 20-day SMA. Please select a longer period or different stock.")
+        else:
+            current_rsi = stock_data['RSI'].iloc[-1]
+            rsi_status = "Overbought" if current_rsi > 70 else "Oversold" if current_rsi < 30 else "Neutral"
 
-        rsi_status_color = "#e74c3c" if rsi_status == "Overbought" else "#2ecc71" if rsi_status == "Oversold" else "#f39c12"
-        st.markdown(
-            f"""
-            <div class='info-box' style='background-color: {rsi_status_color};'>
-                <h2>RSI for {stock_symbol}: {current_rsi:.2f}</h2>
-                <p>Status: {rsi_status}</p>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
+            rsi_status_color = "#e74c3c" if rsi_status == "Overbought" else "#2ecc71" if rsi_status == "Oversold" else "#f39c12"
+            st.markdown(
+                f"""
+                <div class='info-box' style='background-color: {rsi_status_color};'>
+                    <h2>RSI for {stock_symbol}: {current_rsi:.2f}</h2>
+                    <p>Status: {rsi_status}</p>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
 
-        st.subheader(f"🔍 Insights for {stock_symbol}")
+            st.subheader(f"🔍 Insights for {stock_symbol}")
 
-        # RSI Plot
-        fig_rsi = go.Figure()
-        fig_rsi.add_trace(go.Scatter(x=stock_data.index, y=stock_data['RSI'], mode='lines', name='RSI'))
-        fig_rsi.add_hline(y=70, line_dash="dash", line_color="red", annotation_text="Overbought", annotation_position="bottom right")
-        fig_rsi.add_hline(y=30, line_dash="dash", line_color="green", annotation_text="Oversold", annotation_position="top right")
-        fig_rsi.update_layout(title=f"{stock_symbol} RSI (Default Period: {rsi_period})", yaxis_title="RSI Value")
-        st.plotly_chart(fig_rsi)
+            # RSI Plot
+            fig_rsi = go.Figure()
+            fig_rsi.add_trace(go.Scatter(x=stock_data.index, y=stock_data['RSI'], mode='lines', name='RSI'))
+            fig_rsi.add_hline(y=70, line_dash="dash", line_color="red", annotation_text="Overbought", annotation_position="bottom right")
+            fig_rsi.add_hline(y=30, line_dash="dash", line_color="green", annotation_text="Oversold", annotation_position="top right")
+            fig_rsi.update_layout(title=f"{stock_symbol} RSI (Default Period: {rsi_period})", yaxis_title="RSI Value")
+            st.plotly_chart(fig_rsi)
 
-        # MACD Plot
-        fig_macd = go.Figure()
-        fig_macd.add_trace(go.Scatter(x=stock_data.index, y=stock_data['MACD'], mode='lines', name='MACD', line=dict(color='purple')))
-        fig_macd.add_trace(go.Scatter(x=stock_data.index, y=stock_data['Signal'], mode='lines', name='Signal Line', line=dict(color='orange')))
-        fig_macd.update_layout(title=f"{stock_symbol} MACD", yaxis_title="MACD Value")
-        st.plotly_chart(fig_macd)
+            # MACD Plot
+            fig_macd = go.Figure()
+            fig_macd.add_trace(go.Scatter(x=stock_data.index, y=stock_data['MACD'], mode='lines', name='MACD', line=dict(color='purple')))
+            fig_macd.add_trace(go.Scatter(x=stock_data.index, y=stock_data['Signal'], mode='lines', name='Signal Line', line=dict(color='orange')))
+            fig_macd.update_layout(title=f"{stock_symbol} MACD", yaxis_title="MACD Value")
+            st.plotly_chart(fig_macd)
 
-        # Price & SMA Plot
-        valid_data = stock_data.dropna(subset=['SMA_20'])
-        fig_price = go.Figure()
-        fig_price.add_trace(go.Scatter(x=valid_data.index, y=valid_data['Close'], mode='lines', name='Close Price', line=dict(color='blue')))
-        fig_price.add_trace(go.Scatter(x=valid_data.index, y=valid_data['SMA_20'], mode='lines', name='20-Day SMA', line=dict(color='orange')))
-        fig_price.update_layout(
-            title=f"{stock_symbol} Price and 20-Day SMA",
-            xaxis_title="Date",
-            yaxis_title="Price",
-            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
-            template="plotly_white"
-        )
-        st.plotly_chart(fig_price)
+            # Price & SMA Plot
+            valid_data = stock_data.dropna(subset=['SMA_20']) if 'SMA_20' in stock_data.columns else stock_data
+            fig_price = go.Figure()
+            fig_price.add_trace(go.Scatter(x=valid_data.index, y=valid_data['Close'], mode='lines', name='Close Price', line=dict(color='blue')))
+            fig_price.add_trace(go.Scatter(x=valid_data.index, y=valid_data['SMA_20'], mode='lines', name='20-Day SMA', line=dict(color='orange')))
+            fig_price.update_layout(
+                title=f"{stock_symbol} Price and 20-Day SMA",
+                xaxis_title="Date",
+                yaxis_title="Price",
+                legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+                template="plotly_white"
+            )
+            st.plotly_chart(fig_price)
 
-        # Alerts
-        if rsi_status == "Overbought":
-            st.warning(f"⚠️ {stock_symbol} is currently overbought. Potential for price correction.")
-        elif rsi_status == "Oversold":
-            st.success(f"💡 {stock_symbol} is currently oversold. Consider potential buying opportunities.")
+            # Alerts
+            if rsi_status == "Overbought":
+                st.warning(f"⚠️ {stock_symbol} is currently overbought. Potential for price correction.")
+            elif rsi_status == "Oversold":
+                st.success(f"💡 {stock_symbol} is currently oversold. Consider potential buying opportunities.")
 
 # Footer
 st.markdown("<small><i>Default RSI period is 14...</i></small>", unsafe_allow_html=True)
