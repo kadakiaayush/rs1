@@ -74,9 +74,13 @@ def calculate_macd(data, short_period=12, long_period=26, signal_period=9):
     return macd, signal
 
 def calculate_sma(data, period=20):
-    """Revised logic to calculate SMA from scratch."""
-    sma = data['Close'].rolling(window=period).mean()
-    return sma
+    """Calculate SMA with proper handling for small datasets."""
+    if len(data) < period:
+        # If not enough data, fill with NaN
+        data['SMA_20'] = pd.Series([None] * len(data), index=data.index)
+    else:
+        data['SMA_20'] = data['Close'].rolling(window=period).mean()
+    return data
 
 # Main Logic
 if stock_symbol:
@@ -90,9 +94,15 @@ if stock_symbol:
             st.error(f"⚠️ The 'Close' column is missing from the data for {stock_symbol}. Cannot proceed.")
         else:
             # Perform Calculations
+            stock_data = calculate_sma(stock_data)  # Ensure SMA_20 is calculated first
             stock_data['RSI'] = calculate_rsi(stock_data, rsi_period)
-            stock_data['SMA_20'] = calculate_sma(stock_data)
             stock_data['MACD'], stock_data['Signal'] = calculate_macd(stock_data)
+
+            # Drop rows with NaN in SMA_20 for plotting
+            if 'SMA_20' in stock_data.columns:
+                valid_sma_data = stock_data.dropna(subset=['SMA_20'])
+            else:
+                valid_sma_data = stock_data  # Fallback to raw data if SMA_20 is missing
 
             # Display RSI Insights
             current_rsi = stock_data['RSI'].iloc[-1]
@@ -127,10 +137,6 @@ if stock_symbol:
 
             # Price & SMA Plot
             fig_price = go.Figure()
-
-            # Ensure alignment of SMA and Close prices
-            valid_sma_data = stock_data.dropna(subset=['SMA_20'])
-
             fig_price.add_trace(go.Scatter(x=valid_sma_data.index, y=valid_sma_data['Close'], mode='lines', name='Price', line=dict(color='black')))
             fig_price.add_trace(go.Scatter(x=valid_sma_data.index, y=valid_sma_data['SMA_20'], mode='lines', name='20-day SMA', line=dict(color='red')))
             fig_price.update_layout(title=f"{stock_symbol} Price and 20-day SMA", yaxis_title="Price")
