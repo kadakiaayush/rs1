@@ -60,8 +60,8 @@ def calculate_rsi(data, period):
     delta = data['Close'].diff(1)
     gain = delta.where(delta > 0, 0)
     loss = -delta.where(delta < 0, 0)
-    avg_gain = gain.rolling(window=period, min_periods=1).mean()
-    avg_loss = loss.rolling(window=period, min_periods=1).mean()
+    avg_gain = gain.rolling(window=period).mean()
+    avg_loss = loss.rolling(window=period).mean()
     rs = avg_gain / avg_loss
     rsi = 100 - (100 / (1 + rs))
     return rsi
@@ -74,9 +74,9 @@ def calculate_macd(data, short_period=12, long_period=26, signal_period=9):
     return macd, signal
 
 def calculate_sma(data, period=20):
-    if len(data) < period:
-        return pd.Series([None] * len(data), index=data.index)  # Return NaN if insufficient data
-    return data['Close'].rolling(window=period).mean()
+    """Revised logic to calculate SMA from scratch."""
+    sma = data['Close'].rolling(window=period).mean()
+    return sma
 
 # Main Logic
 if stock_symbol:
@@ -93,9 +93,6 @@ if stock_symbol:
             stock_data['RSI'] = calculate_rsi(stock_data, rsi_period)
             stock_data['SMA_20'] = calculate_sma(stock_data)
             stock_data['MACD'], stock_data['Signal'] = calculate_macd(stock_data)
-
-            # Drop rows with NaN (caused by rolling calculations)
-            stock_data = stock_data.dropna()
 
             # Display RSI Insights
             current_rsi = stock_data['RSI'].iloc[-1]
@@ -130,8 +127,12 @@ if stock_symbol:
 
             # Price & SMA Plot
             fig_price = go.Figure()
-            fig_price.add_trace(go.Scatter(x=stock_data.index, y=stock_data['Close'], mode='lines', name='Price', line=dict(color='black')))
-            fig_price.add_trace(go.Scatter(x=stock_data.index, y=stock_data['SMA_20'], mode='lines', name='20-day SMA', line=dict(color='red')))
+
+            # Ensure alignment of SMA and Close prices
+            valid_sma_data = stock_data.dropna(subset=['SMA_20'])
+
+            fig_price.add_trace(go.Scatter(x=valid_sma_data.index, y=valid_sma_data['Close'], mode='lines', name='Price', line=dict(color='black')))
+            fig_price.add_trace(go.Scatter(x=valid_sma_data.index, y=valid_sma_data['SMA_20'], mode='lines', name='20-day SMA', line=dict(color='red')))
             fig_price.update_layout(title=f"{stock_symbol} Price and 20-day SMA", yaxis_title="Price")
             st.plotly_chart(fig_price)
 
