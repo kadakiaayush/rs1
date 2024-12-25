@@ -79,15 +79,8 @@ def calculate_rsi(data, period):
     delta = data['Close'].diff(1)
     gain = delta.where(delta > 0, 0)
     loss = -delta.where(delta < 0, 0)
-    avg_gain = gain.rolling(window=period, min_periods=1).mean()
-    avg_loss = loss.rolling(window=period, min_periods=1).mean()
-
-    avg_gain.iloc[period] = gain.iloc[:period+1].mean()
-    avg_loss.iloc[period] = loss.iloc[:period+1].mean()
-
-    for i in range(period + 1, len(avg_gain)):
-        avg_gain.iloc[i] = (avg_gain.iloc[i - 1] * (period - 1) + gain.iloc[i]) / period
-        avg_loss.iloc[i] = (avg_loss.iloc[i - 1] * (period - 1) + loss.iloc[i]) / period
+    avg_gain = gain.rolling(window=period).mean()
+    avg_loss = loss.rolling(window=period).mean()
 
     rs = avg_gain / avg_loss
     rsi = 100 - (100 / (1 + rs))
@@ -103,8 +96,9 @@ def calculate_macd(data, short_period=12, long_period=26, signal_period=9):
 def calculate_sma(data, period=20):
     if len(data) < period:
         st.error(f"Not enough data to calculate a {period}-day SMA. Please adjust the period or select another symbol.")
-        return pd.Series([None] * len(data), index=data.index)
-    return data['Close'].rolling(window=period, min_periods=1).mean()
+        return pd.Series(index=data.index, data=[None] * len(data))
+    sma = data['Close'].rolling(window=period).mean()
+    return sma
 
 # Main Logic
 if stock_symbol:
@@ -113,10 +107,6 @@ if stock_symbol:
     if stock_data.empty:
         st.error(f"⚠️ No data fetched for symbol: {stock_symbol}. Please check the symbol or try another one.")
     else:
-        if 'Close' not in stock_data.columns:
-            st.warning(f"'Close' column is missing in the data for symbol: {stock_symbol}. Using 'Close' instead.")
-            stock_data['Close'] = stock_data['Close']
-
         # Perform Calculations
         stock_data['RSI'] = calculate_rsi(stock_data, rsi_period)
         stock_data['SMA_20'] = calculate_sma(stock_data)
@@ -158,7 +148,7 @@ if stock_symbol:
         fig_price.add_trace(go.Scatter(x=stock_data.index, y=stock_data['Close'], mode='lines', name='Price', line=dict(color='black')))
 
         if stock_data['SMA_20'].isnull().all():
-            st.warning("SMA contains only NaN values. Check if there's enough data to calculate SMA or if the rolling window period is too large.")
+            st.warning("SMA contains only NaN values. Ensure sufficient data is available.")
         else:
             fig_price.add_trace(go.Scatter(x=stock_data.index, y=stock_data['SMA_20'], mode='lines', name='20-day SMA', line=dict(color='red')))
 
