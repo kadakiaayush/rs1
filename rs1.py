@@ -76,17 +76,16 @@ stock_symbol = custom_symbol if custom_symbol else instruments[selected_instrume
 
 # Function Definitions
 def calculate_rsi(data, period):
-    delta = data['Close'].diff(1)
-    gain = delta.where(delta > 0, 0)
-    loss = -delta.where(delta < 0, 0)
-    avg_gain = gain.rolling(window=period).mean()
-    avg_loss = loss.rolling(window=period).mean()
-
-    rs = avg_gain / avg_loss
+    """Calculate Relative Strength Index (RSI)."""
+    delta = data['Close'].diff()
+    gain = (delta.where(delta > 0, 0)).rolling(window=period).mean()
+    loss = (-delta.where(delta < 0, 0)).rolling(window=period).mean()
+    rs = gain / loss
     rsi = 100 - (100 / (1 + rs))
     return rsi
 
 def calculate_macd(data, short_period=12, long_period=26, signal_period=9):
+    """Calculate MACD and Signal Line."""
     short_ema = data['Close'].ewm(span=short_period, adjust=False).mean()
     long_ema = data['Close'].ewm(span=long_period, adjust=False).mean()
     macd = short_ema - long_ema
@@ -94,11 +93,8 @@ def calculate_macd(data, short_period=12, long_period=26, signal_period=9):
     return macd, signal
 
 def calculate_sma(data, period=20):
-    if len(data) < period:
-        st.error(f"Not enough data to calculate a {period}-day SMA. Please adjust the period or select another symbol.")
-        return pd.Series(index=data.index, data=[None] * len(data))
-    sma = data['Close'].rolling(window=period).mean()
-    return sma
+    """Calculate Simple Moving Average (SMA)."""
+    return data['Close'].rolling(window=period).mean()
 
 # Main Logic
 if stock_symbol:
@@ -112,21 +108,21 @@ if stock_symbol:
         stock_data['SMA_20'] = calculate_sma(stock_data)
         stock_data['MACD'], stock_data['Signal'] = calculate_macd(stock_data)
 
-        current_rsi = stock_data['RSI'].iloc[-1]
-        rsi_status = "Overbought" if current_rsi > 70 else "Oversold" if current_rsi < 30 else "Neutral"
+        # Current RSI
+        if not stock_data['RSI'].isna().all():
+            current_rsi = stock_data['RSI'].iloc[-1]
+            rsi_status = "Overbought" if current_rsi > 70 else "Oversold" if current_rsi < 30 else "Neutral"
+            rsi_status_color = "#e74c3c" if rsi_status == "Overbought" else "#2ecc71" if rsi_status == "Oversold" else "#f39c12"
 
-        rsi_status_color = "#e74c3c" if rsi_status == "Overbought" else "#2ecc71" if rsi_status == "Oversold" else "#f39c12"
-        st.markdown(
-            f"""
-            <div class='info-box' style='background-color: {rsi_status_color};'>
-                <h2>RSI for {stock_symbol}: {current_rsi:.2f}</h2>
-                <p>Status: {rsi_status}</p>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-
-        st.subheader(f"🔍 Insights for {stock_symbol}")
+            st.markdown(
+                f"""
+                <div class='info-box' style='background-color: {rsi_status_color};'>
+                    <h2>RSI for {stock_symbol}: {current_rsi:.2f}</h2>
+                    <p>Status: {rsi_status}</p>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
 
         # RSI Plot
         fig_rsi = go.Figure()
@@ -146,24 +142,6 @@ if stock_symbol:
         # Price & SMA Plot
         fig_price = go.Figure()
         fig_price.add_trace(go.Scatter(x=stock_data.index, y=stock_data['Close'], mode='lines', name='Price', line=dict(color='black')))
-
-        if stock_data['SMA_20'].isnull().all():
-            st.warning("SMA contains only NaN values. Ensure sufficient data is available.")
-        else:
-            fig_price.add_trace(go.Scatter(x=stock_data.index, y=stock_data['SMA_20'], mode='lines', name='20-day SMA', line=dict(color='red')))
-
+        fig_price.add_trace(go.Scatter(x=stock_data.index, y=stock_data['SMA_20'], mode='lines', name='20-day SMA', line=dict(color='red')))
         fig_price.update_layout(title=f"{stock_symbol} Price and 20-day SMA", yaxis_title="Price")
         st.plotly_chart(fig_price)
-
-        # Alerts
-        if rsi_status == "Overbought":
-            st.warning(f"⚠️ {stock_symbol} is currently overbought. Potential for price correction.")
-        elif rsi_status == "Oversold":
-            st.success(f"💡 {stock_symbol} is currently oversold. Consider potential buying opportunities.")
-
-# Footer
-st.markdown(
-    "<small><i>Default RSI period is 14...</i></small>",
-    unsafe_allow_html=True,
-)
-st.markdown("<div class='footer'>💸 Developed by Ayush Kadakia 💸</div>", unsafe_allow_html=True)
