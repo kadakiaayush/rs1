@@ -101,7 +101,10 @@ def calculate_macd(data, short_period=12, long_period=26, signal_period=9):
     return macd, signal
 
 def calculate_sma(data, period=20):
-    return data['Close'].rolling(window=period).mean()
+    if len(data) < period:
+        st.error(f"Not enough data to calculate a {period}-day SMA. Please adjust the period or select another symbol.")
+        return pd.Series([None] * len(data), index=data.index)
+    return data['Close'].rolling(window=period, min_periods=1).mean()
 
 # Main Logic
 if stock_symbol:
@@ -110,7 +113,6 @@ if stock_symbol:
     if stock_data.empty:
         st.error(f"⚠️ No data fetched for symbol: {stock_symbol}. Please check the symbol or try another one.")
     else:
-        # Use 'Close' as a fallback for 'Close'
         if 'Close' not in stock_data.columns:
             st.warning(f"'Close' column is missing in the data for symbol: {stock_symbol}. Using 'Close' instead.")
             stock_data['Close'] = stock_data['Close']
@@ -154,7 +156,12 @@ if stock_symbol:
         # Price & SMA Plot
         fig_price = go.Figure()
         fig_price.add_trace(go.Scatter(x=stock_data.index, y=stock_data['Close'], mode='lines', name='Price', line=dict(color='black')))
-        fig_price.add_trace(go.Scatter(x=stock_data.index, y=stock_data['SMA_20'], mode='lines', name='20-day SMA', line=dict(color='red')))
+
+        if stock_data['SMA_20'].isnull().all():
+            st.warning("SMA contains only NaN values. Check if there's enough data to calculate SMA or if the rolling window period is too large.")
+        else:
+            fig_price.add_trace(go.Scatter(x=stock_data.index, y=stock_data['SMA_20'], mode='lines', name='20-day SMA', line=dict(color='red')))
+
         fig_price.update_layout(title=f"{stock_symbol} Price and 20-day SMA", yaxis_title="Price")
         st.plotly_chart(fig_price)
 
