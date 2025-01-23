@@ -57,6 +57,7 @@ st.markdown("<h1 class='title'>📊 RSI & Momentum Analysis for Stocks, Treasuri
 # Sidebar Configuration
 st.sidebar.header("🔧 Customization Options")
 rsi_period = st.sidebar.slider("Select RSI Period", min_value=7, max_value=30, value=14)
+sma_period = st.sidebar.slider("Select SMA Period", min_value=5, max_value=50, value=20)
 
 instruments = {
     "S&P 500 ETF (SPY)": "SPY",
@@ -77,18 +78,10 @@ stock_symbol = custom_symbol if custom_symbol else instruments[selected_instrume
 # Function Definitions
 def calculate_rsi(data, period):
     delta = data['Close'].diff(1)
-    gain = delta.where(delta > 0, 0)
-    loss = -delta.where(delta < 0, 0)
-    avg_gain = gain.rolling(window=period, min_periods=1).mean()
-    avg_loss = loss.rolling(window=period, min_periods=1).mean()
-
-    avg_gain.iloc[period] = gain.iloc[:period+1].mean()
-    avg_loss.iloc[period] = loss.iloc[:period+1].mean()
-
-    for i in range(period + 1, len(avg_gain)):
-        avg_gain.iloc[i] = (avg_gain.iloc[i - 1] * (period - 1) + gain.iloc[i]) / period
-        avg_loss.iloc[i] = (avg_loss.iloc[i - 1] * (period - 1) + loss.iloc[i]) / period
-
+    gain = delta.clip(lower=0)
+    loss = -delta.clip(upper=0)
+    avg_gain = gain.rolling(window=period).mean()
+    avg_loss = loss.rolling(window=period).mean()
     rs = avg_gain / avg_loss
     rsi = 100 - (100 / (1 + rs))
     return rsi
@@ -100,7 +93,7 @@ def calculate_macd(data, short_period=12, long_period=26, signal_period=9):
     signal = macd.ewm(span=signal_period, adjust=False).mean()
     return macd, signal
 
-def calculate_sma(data, period=20):
+def calculate_sma(data, period):
     return data['Close'].rolling(window=period).mean()
 
 # Main Logic
@@ -110,14 +103,9 @@ if stock_symbol:
     if stock_data.empty:
         st.error(f"⚠️ No data fetched for symbol: {stock_symbol}. Please check the symbol or try another one.")
     else:
-        # Use 'Close' as a fallback for 'Close'
-        if 'Close' not in stock_data.columns:
-            st.warning(f"'Close' column is missing in the data for symbol: {stock_symbol}. Using 'Close' instead.")
-            stock_data['Close'] = stock_data['Close']
-
         # Perform Calculations
         stock_data['RSI'] = calculate_rsi(stock_data, rsi_period)
-        stock_data['SMA_20'] = calculate_sma(stock_data)
+        stock_data['SMA'] = calculate_sma(stock_data, sma_period)
         stock_data['MACD'], stock_data['Signal'] = calculate_macd(stock_data)
 
         current_rsi = stock_data['RSI'].iloc[-1]
@@ -141,7 +129,7 @@ if stock_symbol:
         fig_rsi.add_trace(go.Scatter(x=stock_data.index, y=stock_data['RSI'], mode='lines', name='RSI'))
         fig_rsi.add_hline(y=70, line_dash="dash", line_color="red", annotation_text="Overbought", annotation_position="bottom right")
         fig_rsi.add_hline(y=30, line_dash="dash", line_color="green", annotation_text="Oversold", annotation_position="top right")
-        fig_rsi.update_layout(title=f"{stock_symbol} RSI (Default Period: {rsi_period})", yaxis_title="RSI Value")
+        fig_rsi.update_layout(title=f"{stock_symbol} RSI (Period: {rsi_period})", yaxis_title="RSI Value")
         st.plotly_chart(fig_rsi)
 
         # MACD Plot
@@ -154,8 +142,8 @@ if stock_symbol:
         # Price & SMA Plot
         fig_price = go.Figure()
         fig_price.add_trace(go.Scatter(x=stock_data.index, y=stock_data['Close'], mode='lines', name='Price', line=dict(color='black')))
-        fig_price.add_trace(go.Scatter(x=stock_data.index, y=stock_data['SMA_20'], mode='lines', name='20-day SMA', line=dict(color='red')))
-        fig_price.update_layout(title=f"{stock_symbol} Price and 20-day SMA", yaxis_title="Price")
+        fig_price.add_trace(go.Scatter(x=stock_data.index, y=stock_data['SMA'], mode='lines', name=f"{sma_period}-day SMA", line=dict(color='red')))
+        fig_price.update_layout(title=f"{stock_symbol} Price and SMA ({sma_period}-day)", yaxis_title="Price")
         st.plotly_chart(fig_price)
 
         # Alerts
