@@ -58,6 +58,9 @@ st.markdown("<h1 class='title'>📊 RSI & Momentum Analysis for Stocks, Treasuri
 st.sidebar.header("🔧 Customization Options")
 rsi_period = st.sidebar.slider("Select RSI Period", min_value=7, max_value=30, value=14)
 sma_period = st.sidebar.slider("Select SMA Period", min_value=5, max_value=50, value=20)
+macd_short_period = st.sidebar.slider("Select MACD Short Period", min_value=5, max_value=26, value=12)
+macd_long_period = st.sidebar.slider("Select MACD Long Period", min_value=20, max_value=50, value=26)
+macd_signal_period = st.sidebar.slider("Select MACD Signal Period", min_value=5, max_value=20, value=9)
 
 instruments = {
     "S&P 500 ETF (SPY)": "SPY",
@@ -80,8 +83,8 @@ def calculate_rsi(data, period):
     delta = data['Close'].diff(1)
     gain = delta.clip(lower=0)
     loss = -delta.clip(upper=0)
-    avg_gain = gain.rolling(window=period).mean()
-    avg_loss = loss.rolling(window=period).mean()
+    avg_gain = gain.ewm(alpha=1/period, adjust=False).mean()
+    avg_loss = loss.ewm(alpha=1/period, adjust=False).mean()
     rs = avg_gain / avg_loss
     rsi = 100 - (100 / (1 + rs))
     return rsi
@@ -106,7 +109,7 @@ if stock_symbol:
         # Perform Calculations
         stock_data['RSI'] = calculate_rsi(stock_data, rsi_period)
         stock_data['SMA'] = calculate_sma(stock_data, sma_period)
-        stock_data['MACD'], stock_data['Signal'] = calculate_macd(stock_data)
+        stock_data['MACD'], stock_data['Signal'] = calculate_macd(stock_data, macd_short_period, macd_long_period, macd_signal_period)
 
         current_rsi = stock_data['RSI'].iloc[-1]
         rsi_status = "Overbought" if current_rsi > 70 else "Oversold" if current_rsi < 30 else "Neutral"
